@@ -21,9 +21,68 @@
 
         <label id="dropZone" class="drop-zone" for="audioInput">
           <input id="audioInput" type="file" accept="audio/*">
-          <span class="upload-icon" aria-hidden="true">♪</span>
-          <span id="fileName">파일 선택</span>
+          <div class="drop-zone-prompt" id="dropZonePrompt">
+            <span class="upload-icon" aria-hidden="true">♪</span>
+            <span id="fileNamePrompt">파일 선택 또는 드래그 앤 드롭</span>
+          </div>
+          <div class="file-details hidden" id="fileDetails">
+            <span class="file-icon" aria-hidden="true">🎵</span>
+            <span id="fileName">파일 선택</span>
+            <span class="change-file-btn">다른 파일 선택</span>
+          </div>
         </label>
+
+
+        <div class="settings-container">
+          <div class="settings-group">
+            <div class="input-field">
+              <label for="sampleRateSelect">분석 샘플 레이트 (Analysis Sample Rate)</label>
+              <select id="sampleRateSelect" class="styled-select">
+                <option value="22050" selected>22.05 kHz (기본값)</option>
+                <option value="44100">44.1 kHz</option>
+                <option value="48000">48 kHz</option>
+                <option value="88200">88.2 kHz</option>
+                <option value="96000">96 kHz</option>
+                <option value="176400">176.4 kHz</option>
+                <option value="192000">192 kHz</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <div class="checkbox-field">
+              <input id="enableRangeCheckbox" type="checkbox">
+              <label for="enableRangeCheckbox">BPM 탐색 범위 제한 (BPM Candidate Range Selection)</label>
+            </div>
+            <div class="settings-row hidden" id="rangeInputsRow">
+              <div class="input-field">
+                <label for="minBpmInput">Min BPM</label>
+                <input id="minBpmInput" type="number" value="70.0" min="1" max="1000" step="1">
+              </div>
+              <div class="input-field">
+                <label for="maxBpmInput">Max BPM</label>
+                <input id="maxBpmInput" type="number" value="210.0" min="1" max="1000" step="1">
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <div class="checkbox-field">
+              <input id="enableSectionCheckbox" type="checkbox">
+              <label for="enableSectionCheckbox">구간 지정 분석 활성화 (Enable Section Analysis)</label>
+            </div>
+            <div class="settings-row hidden" id="sectionTimesRow">
+              <div class="input-field">
+                <label for="startTimeInput">Start Time (초)</label>
+                <input id="startTimeInput" type="number" value="0.0" min="0" step="0.1">
+              </div>
+              <div class="input-field">
+                <label for="endTimeInput">End Time (초)</label>
+                <input id="endTimeInput" type="number" value="30.0" min="0" step="0.1">
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div class="actions">
           <button id="analyzeButton" type="button" disabled>분석</button>

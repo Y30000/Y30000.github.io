@@ -131,6 +131,56 @@ p {
   overflow-wrap: anywhere;
 }
 
+.hidden {
+  display: none !important;
+}
+
+.drop-zone-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.file-details {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  animation: fadeIn 200ms ease-out;
+}
+
+.file-icon {
+  font-size: 40px;
+  line-height: 1;
+  color: var(--accent);
+}
+
+.change-file-btn {
+  display: inline-block;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  background: #ffffff;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+  user-select: none;
+  margin-top: 4px;
+}
+
+.change-file-btn:hover {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 .actions {
   display: flex;
   justify-content: flex-end;
@@ -207,6 +257,97 @@ p {
   color: var(--good);
 }
 
+
+.settings-container {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-top: 1px solid var(--line);
+  padding-top: 24px;
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #fbfcfd;
+  border: 1px solid rgba(105, 117, 134, 0.15);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-field input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.settings-row {
+  display: flex;
+  gap: 16px;
+  transition: max-height 250ms ease, opacity 250ms ease, transform 250ms ease, margin 250ms ease;
+  max-height: 120px;
+  opacity: 1;
+  transform: translateY(0);
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.settings-row.hidden {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-8px);
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-top: 0;
+  pointer-events: none;
+}
+
+.input-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.input-field input[type="number"],
+.input-field select {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--ink);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.input-field input[type="number"]:focus,
+.input-field select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 109, 119, 0.12);
+}
+
+
 @media (max-width: 640px) {
   .app-shell {
     width: min(100% - 20px, 920px);
@@ -227,5 +368,15 @@ p {
 
   .metric.wide {
     grid-column: auto;
+  }
+
+  .settings-row {
+    flex-direction: column;
+    gap: 12px;
+    max-height: 220px;
+  }
+
+  .settings-row.hidden {
+    max-height: 0;
   }
 }

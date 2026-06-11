@@ -1,8 +1,5 @@
 "use strict";
 
-const SAMPLE_RATE_FALLBACK = 44100;
-const FRAME_LENGTH = 1024;
-const HOP_LENGTH = 512;
 const MIN_BPM = 40;
 const MAX_BPM = 240;
 
@@ -17,12 +14,34 @@ const elements = {
   confidence: document.getElementById("confidenceValue"),
   candidates: document.getElementById("candidateValue"),
   duration: document.getElementById("durationValue"),
+  
+  // Settings controls
+  enableRange: document.getElementById("enableRangeCheckbox"),
+  minBpm: document.getElementById("minBpmInput"),
+  maxBpm: document.getElementById("maxBpmInput"),
+  rangeInputsRow: document.getElementById("rangeInputsRow"),
+  enableSection: document.getElementById("enableSectionCheckbox"),
+  startTime: document.getElementById("startTimeInput"),
+  endTime: document.getElementById("endTimeInput"),
+  sectionTimesRow: document.getElementById("sectionTimesRow"),
+  sampleRateSelect: document.getElementById("sampleRateSelect"),
+  
+  // File detail toggle elements
+  dropZonePrompt: document.getElementById("dropZonePrompt"),
+  fileDetails: document.getElementById("fileDetails"),
 };
 
 let selectedFile = null;
 
 elements.input.addEventListener("change", () => {
   setFile(elements.input.files[0] || null);
+});
+
+[elements.minBpm, elements.maxBpm, elements.startTime, elements.endTime].forEach((input) => {
+  input.addEventListener("input", validateInputs);
+});
+[elements.enableRange, elements.enableSection].forEach((chk) => {
+  chk.addEventListener("change", validateInputs);
 });
 
 elements.analyzeButton.addEventListener("click", async () => {
@@ -45,6 +64,13 @@ elements.analyzeButton.addEventListener("click", async () => {
 
 elements.resetButton.addEventListener("click", () => {
   elements.input.value = "";
+  elements.enableRange.checked = false;
+  elements.enableSection.checked = false;
+  elements.minBpm.value = "70.0";
+  elements.maxBpm.value = "210.0";
+  elements.startTime.value = "0.0";
+  elements.endTime.value = "30.0";
+  elements.sampleRateSelect.value = "22050";
   setFile(null);
   resetResult();
   setStatus("오디오 파일을 선택하세요.", "");
@@ -70,20 +96,123 @@ elements.dropZone.addEventListener("drop", (event) => {
 
 function setFile(file) {
   selectedFile = file;
-  elements.fileName.textContent = file ? file.name : "파일 선택";
-  elements.analyzeButton.disabled = !file;
+  if (file) {
+    elements.fileName.textContent = file.name;
+    elements.dropZonePrompt.classList.add("hidden");
+    elements.fileDetails.classList.remove("hidden");
+  } else {
+    elements.fileName.textContent = "파일 선택";
+    elements.dropZonePrompt.classList.remove("hidden");
+    elements.fileDetails.classList.add("hidden");
+  }
   resetResult();
-  if (file) setStatus("분석 준비 완료", "");
+  validateInputs();
 }
 
 function setBusy(isBusy) {
-  elements.analyzeButton.disabled = isBusy || !selectedFile;
-  elements.analyzeButton.textContent = isBusy ? "분석 중" : "분석";
+  if (isBusy) {
+    elements.analyzeButton.disabled = true;
+    elements.analyzeButton.textContent = "분석 중";
+  } else {
+    validateInputs();
+    elements.analyzeButton.textContent = "분석";
+  }
 }
 
 function setStatus(message, className) {
   elements.status.textContent = message;
   elements.status.className = className;
+}
+
+function validateInputs() {
+  const rangeEnabled = elements.enableRange.checked;
+  const sectionEnabled = elements.enableSection.checked;
+
+  // Toggle visibility of setting rows
+  if (rangeEnabled) {
+    elements.rangeInputsRow.classList.remove("hidden");
+  } else {
+    elements.rangeInputsRow.classList.add("hidden");
+  }
+
+  if (sectionEnabled) {
+    elements.sectionTimesRow.classList.remove("hidden");
+  } else {
+    elements.sectionTimesRow.classList.add("hidden");
+  }
+
+  // 1. Validate BPM Candidates
+  if (rangeEnabled) {
+    const minBpmVal = parseFloat(elements.minBpm.value);
+    if (isNaN(minBpmVal)) {
+      setStatus("에러: 최소 BPM 탐색 범위는 유효한 숫자여야 합니다.", "is-error");
+      elements.analyzeButton.disabled = true;
+      return false;
+    }
+    if (minBpmVal <= 0) {
+      setStatus("에러: 최소 BPM 탐색 범위는 0보다 커야 합니다.", "is-error");
+      elements.analyzeButton.disabled = true;
+      return false;
+    }
+
+    const maxBpmVal = parseFloat(elements.maxBpm.value);
+    if (isNaN(maxBpmVal)) {
+      setStatus("에러: 최대 BPM 탐색 범위는 유효한 숫자여야 합니다.", "is-error");
+      elements.analyzeButton.disabled = true;
+      return false;
+    }
+    if (maxBpmVal < minBpmVal) {
+      setStatus("에러: 최대 BPM 탐색 범위는 최소 BPM보다 크거나 같아야 합니다.", "is-error");
+      elements.analyzeButton.disabled = true;
+      return false;
+    }
+  }
+
+  // 2. Validate Segment/Section Analysis
+  if (sectionEnabled) {
+    const startTimeVal = parseFloat(elements.startTime.value);
+    if (isNaN(startTimeVal)) {
+      setStatus("에러: 시작 시간은 유효한 숫자여야 합니다.", "is-error");
+      elements.analyzeButton.disabled = true;
+      return false;
+    }
+    if (startTimeVal < 0) {
+      setStatus("에러: 시작 시간은 0 이상이어야 합니다.", "is-error");
+      elements.analyzeButton.disabled = true;
+      return false;
+    }
+
+    const endTimeVal = parseFloat(elements.endTime.value);
+    if (isNaN(endTimeVal)) {
+      setStatus("에러: 끝 시간은 유효한 숫자여야 합니다.", "is-error");
+      elements.analyzeButton.disabled = true;
+      return false;
+    }
+    if (endTimeVal <= startTimeVal) {
+      setStatus("에러: 끝 시간은 시작 시간보다 커야 합니다.", "is-error");
+      elements.analyzeButton.disabled = true;
+      return false;
+    }
+
+    const duration = endTimeVal - startTimeVal;
+    if (duration < 3.0) {
+      setStatus(`에러: 분석 구간은 최소 3.0초 이상이어야 합니다. (현재 ${duration.toFixed(2)}초)`, "is-error");
+      elements.analyzeButton.disabled = true;
+      return false;
+    }
+  }
+
+  // 3. Check if input is selected
+  const hasFile = !!selectedFile;
+  if (!hasFile) {
+    setStatus("오디오 파일을 선택하세요.", "");
+    elements.analyzeButton.disabled = true;
+    return true;
+  }
+
+  setStatus("분석 준비 완료", "");
+  elements.analyzeButton.disabled = false;
+  return true;
 }
 
 function resetResult() {
@@ -95,7 +224,7 @@ function resetResult() {
 
 function renderResult(result) {
   elements.bpm.textContent = result.bpm.toFixed(2);
-  elements.confidence.textContent = result.confidence.toFixed(2);
+  elements.confidence.textContent = `${(result.confidence * 100).toFixed(1)}%`;
   elements.candidates.textContent = result.candidates
     .map((candidate) => candidate.toFixed(2))
     .join(", ");
@@ -114,45 +243,131 @@ async function analyzeAudioFile(file) {
   }
 
   const audioContext = new AudioContextClass();
+  let decodedBuffer;
   try {
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
-    const samples = mixToMono(audioBuffer);
-    const result = analyzeSamples(samples, audioBuffer.sampleRate || SAMPLE_RATE_FALLBACK);
-    result.fileName = file.name;
-    return result;
+    decodedBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
   } finally {
     await audioContext.close();
   }
+
+  const OfflineAudioContextClass = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  if (!OfflineAudioContextClass) {
+    throw new Error("이 브라우저는 OfflineAudioContext를 지원하지 않습니다.");
+  }
+
+  // Resample target to 22050 Hz and mix to mono
+  const targetSampleRate = 22050;
+  const offlineCtx = new OfflineAudioContextClass(
+    1,
+    Math.floor(decodedBuffer.duration * targetSampleRate),
+    targetSampleRate
+  );
+
+  const bufferSource = offlineCtx.createBufferSource();
+  bufferSource.buffer = decodedBuffer;
+  bufferSource.connect(offlineCtx.destination);
+  bufferSource.start();
+
+  const resampledBuffer = await offlineCtx.startRendering();
+  let samples = resampledBuffer.getChannelData(0);
+
+  // 구간 지정 분석 (Section Analysis) 처리
+  if (elements.enableSection.checked) {
+    const startTimeVal = parseFloat(elements.startTime.value);
+    const endTimeVal = parseFloat(elements.endTime.value);
+    
+    const startSample = Math.floor(startTimeVal * targetSampleRate);
+    const endSample = Math.floor(endTimeVal * targetSampleRate);
+    
+    if (startSample >= samples.length) {
+      throw new Error(`시작 시간(${startTimeVal}초)이 오디오 전체 길이(${(samples.length / targetSampleRate).toFixed(2)}초)를 초과합니다.`);
+    }
+    
+    const slicedSamples = samples.slice(startSample, Math.min(endSample, samples.length));
+    const slicedDuration = slicedSamples.length / targetSampleRate;
+    if (slicedDuration < 3.0) {
+      throw new Error(`자른 분석 구간이 최소 오디오 요구사항(3.0초)보다 짧습니다. (현재 구간 길이: ${slicedDuration.toFixed(2)}초)`);
+    }
+    samples = slicedSamples;
+  }
+
+  // BPM 탐색 범위 제한 설정 파싱
+  let minBpmVal = 70.0;
+  let maxBpmVal = 210.0;
+  if (elements.enableRange.checked) {
+    minBpmVal = parseFloat(elements.minBpm.value) || 70.0;
+    maxBpmVal = parseFloat(elements.maxBpm.value) || 210.0;
+  }
+
+  const result = analyzeSamples(samples, targetSampleRate, minBpmVal, maxBpmVal);
+  result.fileName = file.name;
+  return result;
 }
 
-function mixToMono(audioBuffer) {
-  const output = new Float32Array(audioBuffer.length);
-  for (let channel = 0; channel < audioBuffer.numberOfChannels; channel += 1) {
-    const data = audioBuffer.getChannelData(channel);
-    for (let index = 0; index < data.length; index += 1) {
-      output[index] += data[index] / audioBuffer.numberOfChannels;
+function findFirstPeak(onsetEnvelope, threshold = 0.3) {
+  if (onsetEnvelope.length === 0) return 0;
+  const maxVal = Math.max(...onsetEnvelope);
+  if (maxVal === 0) return 0;
+
+  const limit = threshold * maxVal;
+  for (let i = 1; i < onsetEnvelope.length - 1; i += 1) {
+    if (onsetEnvelope[i] >= limit) {
+      if (onsetEnvelope[i] >= onsetEnvelope[i - 1] && onsetEnvelope[i] >= onsetEnvelope[i + 1]) {
+        return i;
+      }
     }
   }
-  return output;
+
+  for (let i = 0; i < onsetEnvelope.length; i += 1) {
+    if (onsetEnvelope[i] >= limit) {
+      return i;
+    }
+  }
+
+  return 0;
 }
 
-function analyzeSamples(samples, sampleRate) {
+function getDSPParams(sampleRate) {
+  const targetWindow = 0.0464399; // 1024 / 22050
+  const targetHop = 0.01160997; // 256 / 22050
+  
+  const idealFrame = sampleRate * targetWindow;
+  const frameLength = Math.pow(2, Math.round(Math.log2(idealFrame)));
+  
+  const idealHop = sampleRate * targetHop;
+  const hopLength = Math.pow(2, Math.round(Math.log2(idealHop)));
+  
+  return { frameLength, hopLength };
+}
+
+function analyzeSamples(samples, sampleRate, minBpm = 70.0, maxBpm = 210.0) {
+  const dspParams = getDSPParams(sampleRate);
+  const frameLength = dspParams.frameLength;
+  const hopLength = dspParams.hopLength;
+
   const durationSeconds = samples.length / sampleRate;
   if (durationSeconds < 3) {
     throw new Error("3초 이상의 오디오가 필요합니다.");
   }
 
-  const onsetEnvelope = computeOnsetEnvelope(samples);
+  let onsetEnvelope = computeOnsetEnvelope(samples, frameLength, hopLength);
   if (!onsetEnvelope.some((value) => value > 0)) {
     throw new Error("리듬 온셋을 찾지 못했습니다.");
   }
 
-  const { candidates, strengths } = estimateTempoCandidates(onsetEnvelope, sampleRate);
+  // Phase alignment (centering around the first peak of onset energy)
+  const firstPeakIdx = findFirstPeak(onsetEnvelope);
+  const maxLag = Math.ceil((60 / minBpm) * sampleRate / hopLength);
+  if (onsetEnvelope.length - firstPeakIdx >= maxLag) {
+    onsetEnvelope = onsetEnvelope.slice(firstPeakIdx);
+  }
+
+  const { candidates, strengths } = estimateTempoCandidates(onsetEnvelope, sampleRate, hopLength, minBpm, maxBpm);
   if (candidates.length === 0) {
     throw new Error("BPM을 계산하지 못했습니다.");
   }
 
-  const bpm = selectPrimaryBpm(candidates);
+  const bpm = selectPrimaryBpm(candidates, minBpm, maxBpm);
   return {
     bpm,
     confidence: confidenceFromStrengths(strengths),
@@ -161,22 +376,22 @@ function analyzeSamples(samples, sampleRate) {
   };
 }
 
-function computeOnsetEnvelope(samples) {
-  if (samples.length < FRAME_LENGTH) return [];
+function computeOnsetEnvelope(samples, frameLength, hopLength) {
+  if (samples.length < frameLength) return [];
 
-  const window = hannWindow(FRAME_LENGTH);
+  const window = hannWindow(frameLength);
   let previous = null;
   const flux = [];
 
-  for (let start = 0; start + FRAME_LENGTH <= samples.length; start += HOP_LENGTH) {
-    const real = new Float64Array(FRAME_LENGTH);
-    const imag = new Float64Array(FRAME_LENGTH);
-    for (let index = 0; index < FRAME_LENGTH; index += 1) {
+  for (let start = 0; start + frameLength <= samples.length; start += hopLength) {
+    const real = new Float64Array(frameLength);
+    const imag = new Float64Array(frameLength);
+    for (let index = 0; index < frameLength; index += 1) {
       real[index] = samples[start + index] * window[index];
     }
 
     fft(real, imag);
-    const magnitude = new Float64Array(FRAME_LENGTH / 2);
+    const magnitude = new Float64Array(frameLength / 2);
     for (let bin = 0; bin < magnitude.length; bin += 1) {
       magnitude[bin] = Math.hypot(real[bin], imag[bin]);
     }
@@ -196,10 +411,10 @@ function computeOnsetEnvelope(samples) {
   return normalize(flux);
 }
 
-function estimateTempoCandidates(onsetEnvelope, sampleRate) {
+function estimateTempoCandidates(onsetEnvelope, sampleRate, hopLength, minBpm = 70.0, maxBpm = 210.0) {
   const centered = center(onsetEnvelope);
-  const minLag = Math.floor((60 / MAX_BPM) * sampleRate / HOP_LENGTH);
-  const maxLag = Math.ceil((60 / MIN_BPM) * sampleRate / HOP_LENGTH);
+  const minLag = Math.floor((60 / maxBpm) * sampleRate / hopLength);
+  const maxLag = Math.ceil((60 / minBpm) * sampleRate / hopLength);
   const zeroLag = dotAtLag(centered, 0);
 
   if (zeroLag <= 0) return { candidates: [], strengths: [] };
@@ -222,8 +437,8 @@ function estimateTempoCandidates(onsetEnvelope, sampleRate) {
   const strengths = [];
   for (const peak of peaks) {
     const lag = refineLag(correlation, peak.lag);
-    const bpm = 60 * sampleRate / (lag * HOP_LENGTH);
-    if (bpm >= MIN_BPM && bpm <= MAX_BPM && !nearExisting(bpm, candidates)) {
+    const bpm = 60 * sampleRate / (lag * hopLength);
+    if (bpm >= minBpm && bpm <= maxBpm && !nearExisting(bpm, candidates)) {
       candidates.push(round(bpm, 2));
       strengths.push(Math.max(0, peak.strength));
     }
@@ -254,8 +469,8 @@ function refineLag(correlation, lag) {
   return lag + clamp(adjustment, -0.5, 0.5);
 }
 
-function selectPrimaryBpm(candidates) {
-  return candidates.find((candidate) => candidate >= 70 && candidate <= 180) || candidates[0];
+function selectPrimaryBpm(candidates, minBpm = 70.0, maxBpm = 210.0) {
+  return candidates.find((candidate) => candidate >= minBpm && candidate <= maxBpm) || candidates[0];
 }
 
 function prioritizeCandidate(primary, candidates) {
@@ -356,4 +571,5 @@ window.BPMAnalyzer = {
   analyzeSamples,
   computeOnsetEnvelope,
   estimateTempoCandidates,
+  findFirstPeak,
 };
